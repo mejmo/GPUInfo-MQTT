@@ -85,7 +85,8 @@ jobs:
         if: env.SIGN == 'true'
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem artifacts/installer/*.exe) + @(Get-ChildItem artifacts/app -Filter 'GpuInfoMqtt.*.exe')
+          $files = @(Get-ChildItem artifacts/installer/*.exe) + @(Get-ChildItem artifacts/app -Filter 'GpuInfoMqtt.*') |
+            Where-Object Extension -in '.exe', '.dll'
           foreach ($f in $files) {
             $sig = Get-AuthenticodeSignature $f.FullName
             Write-Host "$($f.Name): $($sig.Status) - $($sig.SignerCertificate.Subject)"

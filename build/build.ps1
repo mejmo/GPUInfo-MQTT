@@ -54,7 +54,9 @@ if ($Sign) {
     $isccArgs += '/DSIGN'
     # Inno's $q is a literal quote and $f the (already quoted) file. Real quotes here would be re-escaped by
     # PowerShell's native-argument passing and mangle the path.
-    $isccArgs += "/Ssigntool=powershell.exe -NoProfile -ExecutionPolicy Bypass -File `$q$signScript`$q `$f"
+    # Same PowerShell as this script (pwsh in CI): avoids module-path mix-ups between PowerShell 5.1 and 7.
+    $shell = (Get-Process -Id $PID).Path
+    $isccArgs += "/Ssigntool=`$q$shell`$q -NoProfile -ExecutionPolicy Bypass -File `$q$signScript`$q `$f"
 }
 & $iscc @isccArgs 'installer\GpuInfoMqtt.iss'
 if ($LASTEXITCODE) { throw 'Installer build failed' }

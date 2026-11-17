@@ -31,8 +31,14 @@ Invoke-TrustedSigning `
     -TimestampRfc3161 'http://timestamp.acs.microsoft.com' `
     -TimestampDigest SHA256
 
-foreach ($p in $paths) {
-    $sig = Get-AuthenticodeSignature $p
-    if ($sig.Status -ne 'Valid') { throw "$p signature is $($sig.Status)" }
-    Write-Host "  signed: $(Split-Path $p -Leaf)  ($($sig.SignerCertificate.Subject))"
+if ($LASTEXITCODE) { throw "Signing failed with exit code $LASTEXITCODE" }
+
+# Self-check (best effort: the release workflow verifies every signature again afterwards).
+if (Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue) {
+    foreach ($p in $paths) {
+        $sig = Get-AuthenticodeSignature $p
+        if ($sig.Status -ne 'Valid') { throw "$p signature is $($sig.Status)" }
+        Write-Host "  signed: $(Split-Path $p -Leaf)  ($($sig.SignerCertificate.Subject))"
+    }
 }
+exit 0
