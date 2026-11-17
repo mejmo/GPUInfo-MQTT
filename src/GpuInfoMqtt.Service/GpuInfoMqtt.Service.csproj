@@ -8,7 +8,7 @@
     <AssemblyName>GpuInfoMqtt.Service</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>1.1.0</Version>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

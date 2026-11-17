@@ -9,3 +9,4 @@ settings.json
 *.pfx
 *.key
 .env
+artifacts/

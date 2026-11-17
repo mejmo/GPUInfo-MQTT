@@ -1,0 +1,30 @@
+name: CI
+
+# Build and unit tests for every pull request and for main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+
+      - run: dotnet build GpuInfoMqtt.sln -c Release
+
+      - run: dotnet test GpuInfoMqtt.sln -c Release --no-build --logger "console;verbosity=normal"

@@ -10,6 +10,9 @@
 ![WinForms](https://img.shields.io/badge/UI-WinForms-5C2D91)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-nvidia--smi-76B900?logo=nvidia&logoColor=white)
 ![MQTT](https://img.shields.io/badge/MQTT-MQTTnet%204-660066?logo=mqtt&logoColor=white)
+![CI](https://github.com/mejmo/GPUInfo-MQTT/actions/workflows/ci.yml/badge.svg)
+![Release](https://img.shields.io/github/v/release/mejmo/GPUInfo-MQTT?logo=github)
+![Signed](https://img.shields.io/badge/signed-Azure%20Artifact%20Signing-0078D4?logo=microsoftazure&logoColor=white)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-MQTT%20discovery-18BCF2?logo=homeassistant&logoColor=white)
 
 </div>
@@ -24,7 +27,7 @@ It was built mainly for **Home Assistant**, so that a gaming / AI / render PC ca
 
 ## Install in 5 steps
 
-You need **Windows 10/11 x64** with an **NVIDIA driver**, the **[.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)**, and **Home Assistant**.
+You need **Windows 10/11 x64** with an **NVIDIA driver**, and **Home Assistant**. Nothing else: the installer includes the .NET runtime.
 
 **1. Add the MQTT broker to Home Assistant.**
 Go to **Settings → Add-ons → Add-on store**, install **Mosquitto broker** and start it.
@@ -35,11 +38,7 @@ Go to **Settings → Devices & services**. MQTT shows up as *Discovered*. Click 
 **3. Create a user for the PC.**
 Go to **Settings → People → Users → Add user**, for example `gpuinfo` with a strong password, and turn off *Can log in*.
 
-**4. Install on the PC.** Open PowerShell **as administrator** in this folder:
-
-```powershell
-.\install.ps1
-```
+**4. Install on the PC.** Download **`GpuInfoMqtt-Setup-x.y.z.exe`** from [Releases](../../releases/latest) and run it. It is signed by *DevelMagic s.r.o.* and installs the service and the tray app. Running it again upgrades in place and keeps your settings.
 
 **5. Connect.** Click the new tray icon next to the clock (it may be under **^**) and open **Settings**. Enter the Home Assistant address, `1883`, and the user from step 3, then click **Save & reconnect**. The badge turns green.
 
@@ -149,15 +148,20 @@ The service runs as **LocalSystem**, and the tray app runs as a normal user. The
 
 ## Uninstall
 
-```powershell
-.\uninstall.ps1                  # keeps settings
-.\uninstall.ps1 -RemoveSettings  # also deletes C:\ProgramData\GpuInfoMqtt
-```
+Go to **Settings → Apps → Installed apps → GPU Info MQTT → Uninstall**. Your settings in `C:\ProgramData\GpuInfoMqtt` are kept. Delete that folder as an administrator if you want them gone.
 
 ## Development
 
+| | |
+|---|---|
+| **CI** | `.github/workflows/ci.yml` builds and runs the unit tests on every push and pull request. |
+| **Release** | Push a tag `vX.Y.Z`, and `.github/workflows/release.yml` builds the self-contained apps, signs them and the installer with **Azure Artifact Signing** (same account as sf-querynator), and attaches `GpuInfoMqtt-Setup-X.Y.Z.exe` + `.sha256` to the GitHub Release. Run it manually without a tag for a test build. |
+| **Local installer** | `.\build\build.ps1` (needs [Inno Setup 6](https://jrsoftware.org/isdl.php)); `-Sign` signs if the signing environment variables are set (see `build/sign.ps1`). |
+| **Without installer** | `.\install.ps1` / `.\uninstall.ps1` from an elevated PowerShell (needs the .NET 9 SDK). |
+
 ```powershell
 dotnet build GpuInfoMqtt.sln -c Release
+dotnet test GpuInfoMqtt.sln -c Release
 
 # Run a dev copy next to an installed service without touching its pipe or settings:
 $env:GPUINFOMQTT_PIPE = "GpuInfoMqttDev"; $env:GPUINFOMQTT_DATA = "$PWD\devdata"
@@ -173,5 +177,7 @@ $env:GPUINFOMQTT_PIPE = "GpuInfoMqttDev"; $env:GPUINFOMQTT_DATA = "$PWD\devdata"
 | `src/GpuInfoMqtt.Service` | Worker service: nvidia-smi polling, MQTT ([MQTTnet](https://github.com/dotnet/MQTTnet)), discovery, history, named-pipe server, settings storage |
 | `src/GpuInfoMqtt.Tray` | WinForms tray app with custom-drawn dashboard and chart |
 | `src/GpuInfoMqtt.Shared` | Pipe protocol and data contracts |
+| `tests/GpuInfoMqtt.Tests` | xUnit tests: nvidia-smi parsing, path allow-list, validation, encrypted settings |
+| `installer/` | Inno Setup script (service install/upgrade/removal, tray autostart) |
 
 Service logs go to the Windows Event Log (*Application*, source `GpuInfoMqtt`).

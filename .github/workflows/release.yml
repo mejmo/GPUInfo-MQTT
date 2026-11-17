@@ -1,0 +1,135 @@
+name: Build installer
+
+# - Push a tag like v1.2.0: builds, signs and attaches the installer to that tag's GitHub Release.
+# - Run manually from the Actions tab: leave "tag" empty for a test build (installer only as a run artifact),
+#   or enter an existing tag to build that tag and attach the installer to its Release.
+#
+# Signing uses Azure Artifact Signing, the same account as sf-querynator:
+#   secrets:   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+#   variables: AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE, AZURE_SIGNING_PUBLISHER
+# Without them the build still succeeds, unsigned.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and attach to its Release (empty = test build only)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Version
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG) { $v = $env:RELEASE_TAG.TrimStart('v') }
+          else { $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version + "-ci.$env:GITHUB_RUN_NUMBER" }
+          "VERSION=$v" >> $env:GITHUB_ENV
+          Write-Host "Version: $v"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Signing configured?
+        shell: pwsh
+        run: |
+          if ($env:AZURE_CLIENT_ID -and $env:SIGNING_ENDPOINT) {
+            "SIGN=true" >> $env:GITHUB_ENV
+            Write-Host "Signing with Azure Artifact Signing (profile: $env:SIGNING_PROFILE, publisher: $env:SIGNING_PUBLISHER)"
+            Install-Module -Name TrustedSigning -MinimumVersion 0.5.0 -Force -Scope CurrentUser -Repository PSGallery
+          } else {
+            Write-Host "::notice::Installer is not signed (Azure signing secrets/variables not configured)"
+          }
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+          SIGNING_PUBLISHER: ${{ vars.AZURE_SIGNING_PUBLISHER }}
+
+      - name: Test, publish, sign, package
+        shell: pwsh
+        run: |
+          $params = @{ Version = $env:VERSION }
+          if ($env:SIGN -eq 'true') { $params.Sign = $true }
+          ./build/build.ps1 @params
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+
+      - name: Verify signatures
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem artifacts/installer/*.exe) + @(Get-ChildItem artifacts/app -Filter 'GpuInfoMqtt.*.exe')
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature $f.FullName
+            Write-Host "$($f.Name): $($sig.Status) - $($sig.SignerCertificate.Subject)"
+            if ($sig.Status -ne 'Valid') { throw "$($f.Name) signature is $($sig.Status)" }
+          }
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/installer/*.exe | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" |
+              Out-File "$($_.FullName).sha256" -Encoding ascii
+          }
+          Get-Content artifacts/installer/*.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GpuInfoMqtt-Setup
+          path: artifacts/installer/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    if: ${{ inputs.tag != '' || startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: GpuInfoMqtt-Setup
+          path: installer
+
+      - run: ls -la installer
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: GPU Info MQTT ${{ env.RELEASE_TAG }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: installer/*
+          body: |
+            ### Install
+            1. Download **GpuInfoMqtt-Setup-*.exe** below and run it (needs administrator rights).
+            2. Click the tray icon → **Settings**, enter your Home Assistant MQTT broker, user and password → **Save & reconnect**.
+
+            Upgrading keeps your settings. Full guide: see the [README](https://github.com/${{ github.repository }}#install-in-5-steps).

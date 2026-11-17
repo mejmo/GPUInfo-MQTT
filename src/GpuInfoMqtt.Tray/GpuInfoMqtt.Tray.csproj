@@ -10,7 +10,7 @@
     <AssemblyName>GpuInfoMqtt.Tray</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>1.1.0</Version>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\app.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFO1000;WFO5001</NoWarn>
   </PropertyGroup>
 

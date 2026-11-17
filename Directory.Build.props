@@ -1,0 +1,9 @@
+<Project>
+  <!-- Shared metadata for all projects. CI overrides Version from the release tag (-p:Version=x.y.z). -->
+  <PropertyGroup>
+    <Version>1.1.0</Version>
+    <Company>DevelMagic s.r.o.</Company>
+    <Product>GPU Info MQTT</Product>
+    <Copyright>© DevelMagic s.r.o.</Copyright>
+  </PropertyGroup>
+</Project>
