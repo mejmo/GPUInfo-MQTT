@@ -1,0 +1,11 @@
+bin/
+obj/
+publish/
+devdata/
+.vs/
+.claude/
+*.user
+settings.json
+*.pfx
+*.key
+.env

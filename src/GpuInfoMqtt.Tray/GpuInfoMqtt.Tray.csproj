@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GpuInfoMqtt.Tray</RootNamespace>
+    <AssemblyName>GpuInfoMqtt.Tray</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>1.1.0</Version>
+    <NoWarn>$(NoWarn);WFO1000;WFO5001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GpuInfoMqtt.Shared\GpuInfoMqtt.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
