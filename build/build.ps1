@@ -52,7 +52,9 @@ if (-not $iscc) { throw 'Inno Setup 6 (ISCC.exe) not found. Install it from http
 $isccArgs = @("/DAppVersion=$Version", "/DFileVersion=$fileVersion")
 if ($Sign) {
     $isccArgs += '/DSIGN'
-    $isccArgs += "/Ssigntool=powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$signScript`" `$f"
+    # Inno's $q is a literal quote and $f the (already quoted) file. Real quotes here would be re-escaped by
+    # PowerShell's native-argument passing and mangle the path.
+    $isccArgs += "/Ssigntool=powershell.exe -NoProfile -ExecutionPolicy Bypass -File `$q$signScript`$q `$f"
 }
 & $iscc @isccArgs 'installer\GpuInfoMqtt.iss'
 if ($LASTEXITCODE) { throw 'Installer build failed' }
