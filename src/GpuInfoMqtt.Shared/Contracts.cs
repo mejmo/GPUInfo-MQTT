@@ -74,7 +74,8 @@ public sealed record StatusSnapshot(
     StatusEvent[] Events,
     GpuReading[] Gpus,
     string? GpuError,
-    HistoryPoint[]? History = null);
+    HistoryPoint[]? History = null,
+    string? ServiceVersion = null);
 
 public static class Commands
 {

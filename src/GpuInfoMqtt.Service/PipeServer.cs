@@ -14,6 +14,7 @@ public sealed class PipeServer(
     : BackgroundService
 {
     private const int MaxInstances = 4;
+    private static readonly string ServiceVersion = typeof(PipeServer).Assembly.GetName().Version?.ToString(3) ?? "?";
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
@@ -98,7 +99,7 @@ public sealed class PipeServer(
                 {
                     gpuError = ex.Message;
                 }
-                var snapshot = status.Snapshot(readings, gpuError);
+                var snapshot = status.Snapshot(readings, gpuError) with { ServiceVersion = ServiceVersion };
                 if (request.IncludeHistory) snapshot = snapshot with { History = history.Snapshot() };
                 return new PipeResponse(true, Status: snapshot);
 

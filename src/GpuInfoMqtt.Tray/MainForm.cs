@@ -53,6 +53,11 @@ internal sealed class MainForm : Form
     private StatusSnapshot? _last;
     private bool _loaded;
 
+    // Fallback when the service doesn't supply history (older service): build it from live polls.
+    private readonly List<HistoryPoint> _localHistory = [];
+    private HistoryPoint[] _history = [];
+    private bool _serviceOutdated;
+
     public MainForm()
     {
         SuspendLayout();
@@ -391,7 +396,15 @@ internal sealed class MainForm : Form
         _gpuPicker.Visible = names.Length > 1;
 
         RenderGpu();
-        _chart.SetData(s.History ?? [], s.Gpus.Select(g => TrayContext.ShortName(g.Name)).ToArray());
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (s.Gpus.Length > 0 && (_localHistory.Count == 0 || now - _localHistory[^1].T >= 2000))
+            _localHistory.Add(new HistoryPoint(now, s.Gpus.Select(g => g.Power).ToArray()));
+        _localHistory.RemoveAll(p => p.T < now - 3_600_000);
+
+        _serviceOutdated = s.ServiceVersion is null;
+        _history = s.History is { Length: > 0 } h ? h : [.. _localHistory];
+        _chart.SetData(_history, s.Gpus.Select(g => TrayContext.ShortName(g.Name)).ToArray());
         UpdateChartStats();
 
         var events = s.Events.Select(e => $"{e.Level}|{e.Time.LocalDateTime:HH:mm:ss}|{e.Text}").ToArray();
@@ -434,9 +447,15 @@ internal sealed class MainForm : Form
 
     private void UpdateChartStats()
     {
-        var history = _last?.History ?? [];
+        var history = _history;
         var start = DateTimeOffset.Now.ToUnixTimeMilliseconds() - (long)Ranges[_range.Selected].TotalMilliseconds;
         var pts = history.Where(p => p.T >= start).Select(p => (p.T, W: p.P.Sum(v => v ?? 0))).ToArray();
+        _chartStats.ForeColor = _serviceOutdated ? Theme.Warn : Theme.Muted;
+        if (_serviceOutdated)
+        {
+            _chartStats.Text = "Installed service is outdated: re-run install.ps1 as administrator. Showing data since this window opened.";
+            return;
+        }
         if (pts.Length == 0)
         {
             _chartStats.Text = "Samples every 5 s, kept for 1 hour";
